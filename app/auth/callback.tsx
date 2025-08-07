@@ -10,10 +10,8 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuth = async () => {
       try {
-        // Add a small delay for Android to process the deep link
-        if (Platform.OS === 'android') {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        // Add a delay to ensure the OAuth flow completes
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         // Get the current session
         const { data, error } = await supabase.auth.getSession();
@@ -22,13 +20,19 @@ export default function AuthCallback() {
         console.log('Auth callback - error:', error);
 
         if (data?.session) {
-          // Successfully signed in, redirect to profile
           console.log('Session found, redirecting to profile');
           router.replace('/profile');
         } else {
-          // Failed to get session, go back to sign in
-          console.log('No session found, redirecting to signin');
-          router.replace('/signin');
+          // Try to refresh the session
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshData?.session) {
+            console.log('Session refreshed, redirecting to profile');
+            router.replace('/profile');
+          } else {
+            console.log('No session found, redirecting to signin');
+            router.replace('/signin');
+          }
         }
       } catch (error) {
         console.error('Error in auth callback:', error);
@@ -39,5 +43,5 @@ export default function AuthCallback() {
     handleAuth();
   }, []);
 
-  return null; // No UI needed, just logic
+  return null;
 }
