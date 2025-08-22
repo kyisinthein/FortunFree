@@ -2,24 +2,192 @@
 // app/(auth)/register.tsx
 
 import { ThemedText } from '@/components/ThemedText';
-import { supabase } from '@/lib/supabase'; // Adjust path if needed
+import { supabase } from '@/lib/supabase';
+import emailjs from '@emailjs/browser'; // Changed from @emailjs/react-native
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-// import * as AppleAuthentication from 'expo-apple-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser'; // Add this import
-import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import React, { useState } from 'react';
+import { Alert, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+
+// Initialize EmailJS with your public key
+emailjs.init('Vf0-vPr5-9Mh2F3GG'); // Updated with new key
 
 export default function RegisterScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
   const router = useRouter();
+
+  // Email validation function
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Password validation function
+  const isValidPassword = (password: string) => {
+    return password.length >= 8 && 
+           /[A-Z]/.test(password) && 
+           /[a-z]/.test(password) && 
+           /\d/.test(password);
+  };
+
+  // Generate 6-digit OTP
+  const generateOtp = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  // Send OTP via EmailJS
+  const sendOtp = async () => {
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email address.');
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address.');
+      return;
+    }
+
+    if (!password) {
+      Alert.alert('Error', 'Please enter a password.');
+      return;
+    }
+
+    if (!isValidPassword(password)) {
+      Alert.alert(
+        'Error', 
+        'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.'
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    
+    const newOtp = generateOtp();
+    setGeneratedOtp(newOtp);
+  
+    try {
+      // Send OTP email using EmailJS
+      const templateParams = {
+        to_email: email,
+        passcode: newOtp,        // ← Changed from 'otp_code' to 'passcode'
+        to_name: email.split('@')[0], // ← Added to match {{to_name}}
+        time: '15 minutes',      // ← Added to match {{time}}
+        user_email: email
+      };
+  
+      await emailjs.send(
+        'service_846hi7r', // Your Service ID
+        'template_86y4qys', // Your Template ID
+        templateParams,
+        'Vf0-vPr5-9Mh2F3GG' // Public key as 4th parameter
+      );
+  
+      setOtpSent(true);
+      Alert.alert(
+        'OTP Sent', 
+        'We\'ve sent a verification code to your email. Please check your inbox.'
+      );
+    } catch (error) {
+      console.error('Error sending OTP:', error);
+      Alert.alert('Error', 'Failed to send verification code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify OTP
+  const verifyOtp = () => {
+    if (!otp.trim()) {
+      Alert.alert('Error', 'Please enter the verification code.');
+      return;
+    }
+
+    if (otp.trim() === generatedOtp) {
+      setOtpVerified(true);
+      Alert.alert('Success', 'Email verified successfully!');
+    } else {
+      Alert.alert('Error', 'Invalid verification code. Please try again.');
+    }
+  };
+
+  // Handle email sign up after OTP verification
+  const handleEmailSignUp = async () => {
+    if (!otpVerified) {
+      Alert.alert('Error', 'Please verify your email first.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password: password,
+        options: {
+          emailRedirectTo: 'fortunapp://complete_profile',
+        },
+      });
+
+      if (error) {
+        console.error('Sign up error:', error);
+        
+        if (error.message.includes('User already registered')) {
+          Alert.alert(
+            'Account Exists', 
+            'An account with this email already exists. Please sign in instead.',
+            [
+              { text: 'OK' },
+              { text: 'Go to Sign In', onPress: () => router.push('/signin') }
+            ]
+          );
+        } else {
+          Alert.alert('Sign Up Error', error.message);
+        }
+        return;
+      }
+
+      if (data.user) {
+        Alert.alert(
+          'Success!', 
+          'Account created successfully!',
+          [{ text: 'OK', onPress: () => router.replace('/complete_profile') }]
+        );
+      }
+    } catch (e: any) {
+      console.error('Critical error in handleEmailSignUp:', e);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset form to send new OTP
+  const resendOtp = () => {
+    setOtpSent(false);
+    setOtpVerified(false);
+    setOtp('');
+    setGeneratedOtp('');
+  };
 
   // Add OAuth result handler (copied from signin.tsx)
   const handleOAuthResult = async (result: any) => {
     if (result.type === 'success') {
       console.log('OAuth flow completed, redirect URL:', result.url);
       
-      // Parse the URL to extract tokens
       const url = new URL(result.url);
       const fragment = url.hash.substring(1);
       const params = new URLSearchParams(fragment);
@@ -27,7 +195,6 @@ export default function RegisterScreen() {
       const refreshToken = params.get('refresh_token');
       
       if (accessToken && refreshToken) {
-        // Set the session manually
         const { data, error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken
@@ -35,7 +202,6 @@ export default function RegisterScreen() {
         
         if (data.session && !error) {
           console.log('Session established successfully');
-          // For new users, redirect to complete_profile instead of profile
           router.replace('/complete_profile');
         } else {
           console.error('Failed to establish session:', error);
@@ -52,14 +218,14 @@ export default function RegisterScreen() {
     }
   };
 
-  // Updated Google sign up method (based on signin.tsx)
+  // Updated Google sign up method
   const handleGoogleSignUp = async () => {
     console.log('Attempting Google Sign-Up...');
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'fortunapp://complete_profile', // Changed to complete_profile
+          redirectTo: 'fortunapp://complete_profile',
           skipBrowserRedirect: true,
           queryParams: {
             prompt: 'select_account'
@@ -93,63 +259,8 @@ export default function RegisterScreen() {
     }
   };
 
-  // const handleAppleSignUp = async () => {
-  //   try {
-  //     // Check if Apple Authentication is available
-  //     const isAvailable = await AppleAuthentication.isAvailableAsync();
-  //     if (!isAvailable) {
-  //       alert('Apple Sign-In is not available on this device.');
-  //       return;
-  //     }
-
-  //     console.log('Attempting Apple Sign-Up...');
-  //     
-  //     // Request Apple authentication
-  //     const credential = await AppleAuthentication.signInAsync({
-  //       requestedScopes: [
-  //         AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-  //         AppleAuthentication.AppleAuthenticationScope.EMAIL,
-  //       ],
-  //     });
-
-  //     console.log('Apple credential received:', credential);
-
-  //     // Sign in with Supabase using the Apple credential
-  //     const { data, error } = await supabase.auth.signInWithIdToken({
-  //       provider: 'apple',
-  //       token: credential.identityToken!,
-  //       nonce: credential.nonce,
-  //     });
-
-  //     if (error) {
-  //       console.error('Apple Sign-Up Error:', error);
-  //       alert(`Apple Sign-Up Error: ${error.message}`);
-  //       return;
-  //     }
-
-  //     if (data.session) {
-  //       console.log('Apple Sign-Up successful, session established');
-  //       // For new users, redirect to complete_profile
-  //       router.replace('/complete_profile');
-  //     } else {
-  //       console.error('Apple Sign-Up did not establish a session');
-  //       alert('Apple Sign-Up failed. Please try again.');
-  //     }
-
-  //   } catch (e: any) {
-  //     if (e.code === 'ERR_REQUEST_CANCELED') {
-  //       console.log('Apple Sign-Up was cancelled by user');
-  //       // Don't show an alert for user cancellation
-  //       return;
-  //     }
-  //     console.error('Critical error in handleAppleSignUp:', e);
-  //     alert(`Apple Sign-Up Error: ${e.message}`);
-  //   }
-  // };
-
   return (
     <>
-      {/* remove default nav header */}
       <Stack.Screen options={{ headerShown: false }} />
 
       <LinearGradient
@@ -158,10 +269,13 @@ export default function RegisterScreen() {
         end={{ x: 1, y: 1 }}
         style={styles.container}
       >
-        {/* Header + underline */}
+        {/* Header */}
         <View style={styles.headerContainer}>
           <ThemedText type="title" style={styles.headerText}>
-            Create an Account
+            Create Account
+          </ThemedText>
+          <ThemedText style={styles.subtitleText}>
+            Sign up to get started
           </ThemedText>
           <LinearGradient
             colors={['#FFD700', '#FF9900', '#FF5C39']}
@@ -171,7 +285,115 @@ export default function RegisterScreen() {
           />
         </View>
 
-        {/* Buttons */}
+        {/* Email Form */}
+        <View style={styles.formContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!otpSent}
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#999"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!otpSent}
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm Password"
+            placeholderTextColor="#999"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!otpSent}
+          />
+
+          {/* OTP Input - Show only after OTP is sent */}
+          {otpSent && (
+            <TextInput
+              style={styles.input}
+              placeholder="Enter 6-digit verification code"
+              placeholderTextColor="#999"
+              value={otp}
+              onChangeText={setOtp}
+              keyboardType="numeric"
+              maxLength={6}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          )}
+          
+          {/* Show different buttons based on state */}
+          {!otpSent ? (
+            <TouchableOpacity
+              style={[styles.button, styles.emailButton, loading && styles.buttonDisabled]}
+              activeOpacity={0.8}
+              onPress={sendOtp}
+              disabled={loading}
+            >
+              <ThemedText style={[styles.buttonText, styles.emailText]}>
+                {loading ? 'Sending Code...' : 'Send Verification Code'}
+              </ThemedText>
+            </TouchableOpacity>
+          ) : !otpVerified ? (
+            <View>
+              <TouchableOpacity
+                style={[styles.button, styles.emailButton]}
+                activeOpacity={0.8}
+                onPress={verifyOtp}
+              >
+                <ThemedText style={[styles.buttonText, styles.emailText]}>
+                  Verify Code
+                </ThemedText>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.button, styles.resendButton]}
+                activeOpacity={0.8}
+                onPress={resendOtp}
+              >
+                <ThemedText style={[styles.buttonText, styles.resendText]}>
+                  Resend Code
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.button, styles.emailButton, loading && styles.buttonDisabled]}
+              activeOpacity={0.8}
+              onPress={handleEmailSignUp}
+              disabled={loading}
+            >
+              <ThemedText style={[styles.buttonText, styles.emailText]}>
+                {loading ? 'Creating Account...' : 'Create Account'}
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Divider */}
+        <View style={styles.dividerContainer}>
+          <View style={styles.dividerLine} />
+          <ThemedText style={styles.dividerText}>OR</ThemedText>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Google Sign Up Button */}
         <View style={styles.content}>
           <TouchableOpacity
             style={[styles.button, styles.googleButton]}
@@ -208,13 +430,9 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',    // center everything vertically
-    alignItems: 'center',        // center everything horizontally
-  },
-  backButton: {
-    position: 'absolute',
-    top: 45,
-    left: 45,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   headerContainer: {
     alignItems: 'center',
@@ -231,41 +449,84 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginTop: 8,
   },
+  formContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  input: {
+    width: 280,
+    height: 50,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    fontSize: 16,
+    color: '#36010F',
+    marginBottom: 16,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 280,
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#FFFFFF',
+    opacity: 0.3,
+  },
+  dividerText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginHorizontal: 15,
+    opacity: 0.7,
+  },
   content: {
     alignItems: 'center',
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     width: 280,
     paddingVertical: 14,
     borderRadius: 25,
     marginBottom: 16,
   },
+  emailButton: {
+    backgroundColor: '#fa8911',
+  },
   googleButton: {
     backgroundColor: '#FFFFFF',
   },
-  appleButton: {
-    backgroundColor: '#000000',
+  resendButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   icon: {
-    marginLeft: 60,
+    marginRight: 15,
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#36010F',
+  },
+  emailText: {
+    color: '#FFFFFF',
   },
   googleText: {
-    marginLeft: 15,
+    color: '#36010F',
   },
-  appleText: {
+  resendText: {
     color: '#FFFFFF',
-    marginLeft: 15,
   },
   footer: {
     position: 'absolute',
-    top: 800,
+    bottom: 50,
     alignSelf: 'center',
   },
   footerText: {
