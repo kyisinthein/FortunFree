@@ -16,10 +16,20 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-ads-admob",
+        {
+          "androidAppId": "ca-app-pub-6368412009992703~2633962886",
+          "iosAppId": "ca-app-pub-6368412009992703~2633962886"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "android": {
+      "package": "com.kaungsanthwin.FortunFree"
     }
   }
 }

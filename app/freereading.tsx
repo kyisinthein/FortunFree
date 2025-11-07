@@ -8,6 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { generateFreeReading } from '../lib/deepseek';
+import { useInterstitialAd } from '@/components/InterstitialAd';
 
 let Markdown: any = null;
 if (Platform.OS !== 'web') {
@@ -344,8 +345,13 @@ export default function FreeAnalysisPage() {
   const [generatingType, setGeneratingType] = useState<'swot' | 'special' | null>(null);
   const [error, setError] = useState('');
 
+  // Properly destructure the hook
+  const { showInterstitialAd, loadInterstitialAd } = useInterstitialAd();
+
   useEffect(() => {
     fetchUserData();
+    // Preload interstitial ad when component mounts
+    loadInterstitialAd();
   }, []);
 
   const fetchUserData = async () => {
@@ -431,6 +437,12 @@ export default function FreeAnalysisPage() {
           user_id: user.id,
           summary: formattedResponse
         });
+
+      // Show interstitial ad after generating reading
+      setTimeout(() => {
+        showInterstitialAd();
+      }, 1000);
+
     } catch (err: any) {
       setError(err.message || 'Failed to generate initial reading');
     }
@@ -472,6 +484,11 @@ export default function FreeAnalysisPage() {
         .from('results')
         .update({ [type]: formattedResponse })
         .eq('user_id', user.id);
+
+      // Show interstitial ad after generating analysis
+      setTimeout(() => {
+        showInterstitialAd();
+      }, 1000);
         
     } catch (err: any) {
       setError(err.message || `Failed to generate ${type} analysis`);

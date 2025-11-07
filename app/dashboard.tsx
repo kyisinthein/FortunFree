@@ -3,8 +3,9 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
 import Footer from '../components/ui/Footer';
+import { TestAdBanner } from '../components/TestAdBanner';
 
 const { width } = Dimensions.get('window');
 
@@ -130,9 +131,12 @@ export default function Dashboard() {
         </View>
 
         {/* Discover Button */}
-        <TouchableOpacity style={styles.discoverButton} onPress={() => router.push('/freereading')}>
-          <Text style={styles.discoverText}>Discover your insight</Text>
+        <TouchableOpacity style={styles.discoverButton} onPress={() => router.push('/freereading')}>          <Text style={styles.discoverText}>Discover your insight</Text>
         </TouchableOpacity>
+        
+        {/* Test Ad */}
+        <TestAdBanner />
+        
       </ScrollView>
 
       <Footer 
