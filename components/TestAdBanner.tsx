@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
 
-export const TestAdBanner: React.FC<{ size?: BannerAdSize }> = ({ 
+export const AdBanner: React.FC<{ size?: BannerAdSize }> = ({ 
   size = BannerAdSize.BANNER 
 }) => {
   // Only show on mobile platforms (Android and iOS)
@@ -13,16 +13,16 @@ export const TestAdBanner: React.FC<{ size?: BannerAdSize }> = ({
   return (
     <View style={styles.container}>
       <BannerAd
-        unitId={'ca-app-pub-6368412009992703/1126604783'} // <-- This is your new Ad Unit ID
+        unitId={'ca-app-pub-6368412009992703/1126604783'} // <-- This is your Ad Unit ID
         size={size}
         requestOptions={{
           requestNonPersonalizedAdsOnly: false,
         }}
         onAdLoaded={() => {
-          console.log('✅ Test banner ad loaded successfully!');
+          console.log('✅ Banner ad loaded successfully!');
         }}
         onAdFailedToLoad={(error) => {
-          console.log('❌ Test banner ad failed to load:', error);
+          console.log('❌ Banner ad failed to load:', error);
         }}
       />
     </View>

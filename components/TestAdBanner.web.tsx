@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-export const TestAdBanner: React.FC<{ size?: any }> = ({ size }) => {
+export const AdBanner: React.FC<{ size?: any }> = ({ size }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.adText}>Ad Placeholder (Web)</Text>

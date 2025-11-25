@@ -33,9 +33,6 @@ export default function RootLayout() {
          <Stack.Screen name="register" />
          <Stack.Screen name="setting" options={{ headerShown: false }} />
          <Stack.Screen name="dashboard" />
-         <Stack.Screen name="(tabs)" />
-         <Stack.Screen name="(protected)" />
-         <Stack.Screen name="(auth)" />
          <Stack.Screen name="+not-found" />
          <Stack.Screen name="terms" />
          <Stack.Screen name="privacy" />

@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
 import Footer from '../components/ui/Footer';
-import { TestAdBanner } from '../components/TestAdBanner';
+import { AdBanner } from '../components/TestAdBanner';
 
 const { width } = Dimensions.get('window');
 
@@ -135,7 +135,7 @@ export default function Dashboard() {
         </TouchableOpacity>
         
         {/* Test Ad */}
-        <TestAdBanner />
+        <AdBanner />
         
       </ScrollView>
 

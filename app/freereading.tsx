@@ -698,6 +698,8 @@ export default function FreeAnalysisPage() {
   );
 }
 
+export default FreeReading;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
